@@ -90,6 +90,30 @@ setup_audio() {
 	return 1
 }
 
+sync_theming() {
+	theming_paths=(
+		"${HOME}/.config/gtk-3.0:/home/${USER}/.config/gtk-3.0:Z,ro"
+		"${HOME}/.config/gtk-4.0:/home/${USER}/.config/gtk-4.0:Z,ro"
+		"${HOME}/.themes:/home/sonia/.themes:Z,ro"
+		"${HOME}/.icons:/home/sonia/.icons:Z,ro"
+		"${HOME}/.local/share/icons:/home/${USER}/.local/share/icons:Z,ro"
+	)
+
+	for path_spec in "${theming_paths[@]}"; do
+		host_path="${path_spec%%:*}"
+		if [ -e "${host_path}" ]; then
+			EXTRA_ARGS+=("-v ${path_spec}")
+		fi
+	done
+
+	EXTRA_ARGS+=(
+		-e "DBUS_SESSION_BUS_ADDRESS=unix:path=${XDG_RUNTIME_DIR}/bus"
+		-v "${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus"
+		-e "GTK_USE_PORTAL=1"
+
+	)
+}
+
 main() {
 	local default_args
 	default_args=(
@@ -103,6 +127,7 @@ main() {
 	setup_display
 	setup_graphics
 	setup_audio
+	sync_theming
 
 	podman run \
 		${default_args[@]} \

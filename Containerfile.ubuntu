@@ -15,7 +15,14 @@ RUN apt-get update && apt-get install -y \
   sudo \
   pulseaudio \
   pulseaudio-utils \
-  libpulse0
+  libpulse0 \
+  libgtk-3-0 libgtk-4-1 gtk2-engines-murrine \
+  xdg-desktop-portal-gtk \
+  adwaita-icon-theme \
+  fonts-dejavu-core \
+  dbus \
+  libcanberra-gtk3-module \
+  at-spi2-core
 
 RUN <<EOF
   apt-get install -y \
