@@ -77,7 +77,7 @@ main() {
 		--userns=keep-id
 		--name "$BOXNAME"
 		--security-opt label=type:container_runtime_t
-		-v $HOME/.osboxes/work-home:/root:Z
+		-v $HOME/.osboxes/work-home:/home/${USER}:Z
 	)
 
 	setup_display
