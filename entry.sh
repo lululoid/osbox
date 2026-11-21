@@ -55,10 +55,14 @@ setup_graphics() {
 }
 
 setup_audio() {
-	local pulse_socket="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pulse/native"
+	local uid runtime_dir pulse_socket pipewire_socket
+	uid="$(id -u)"
+	runtime_dir="${XDG_RUNTIME_DIR:-/run/user/${uid}}"
+	pulse_socket="${runtime_dir}/pulse/native"
+	pipewire_socket="${runtime_dir}/pipewire-0"
 
 	if [ -S "${pulse_socket}" ]; then
-		echo "- Activating sound pass-through..."
+		echo "- Activating PulseAudio pass-through..."
 		EXTRA_ARGS+=(
 			-v "${pulse_socket}:/tmp/pulse-socket:ro"
 			-e "PULSE_SERVER=unix:/tmp/pulse-socket"
@@ -66,7 +70,23 @@ setup_audio() {
 		return 0
 	fi
 
-	echo "- No active audio socket detected at ${pulse_socket}. Audio disabled."
+	if [ -S "${pipewire_socket}" ]; then
+		echo "- Activating PipeWire pass-through..."
+		EXTRA_ARGS+=(
+			-v "${pipewire_socket}:/tmp/pipewire-0:ro"
+			-e "PIPEWIRE_SOCKET=unix:/tmp/pipewire-0"
+		)
+		# PipeWire with PulseAudio compat may expose a pulse socket too
+		if [ -S "${pulse_socket}" ]; then
+			EXTRA_ARGS+=(
+				-v "${pulse_socket}:/tmp/pulse-socket:ro"
+				-e "PULSE_SERVER=unix:/tmp/pulse-socket"
+			)
+		fi
+		return 0
+	fi
+
+	echo "- No active audio socket detected at ${pulse_socket} or ${pipewire_socket}. Audio disabled."
 	return 1
 }
 
