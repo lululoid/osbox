@@ -5,7 +5,7 @@ mkdir -p $LOCAL_PATH $ROOT
 
 podman run -it --rm \
 	-v $(pwd):/workspace:Z \
-	-v $HOME/.agents:/root/.agents:Z,ro \
+	-v $HOME/.agents:/root/.agents:Z \
 	-v $LOCAL_PATH:/root/.local/share/kilo:Z \
 	-v $ROOT:/root:Z \
 	-w /workspace \
