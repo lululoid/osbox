@@ -24,11 +24,27 @@ setup_display() {
 			-e "WAYLAND_DISPLAY=${WAYLAND_DISPLAY}"
 			-v "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY"
 		)
-		return 0
 	fi
 
-	echo "- Display server not detected. No GUI." >&2
-	return 1
+	if [ -n "${DISPLAY:-}" ]; then
+		local XAUTH="${XAUTHORITY:-${HOME}/.Xauthority}"
+		EXTRA_ARGS+=(
+			-e "DISPLAY=${DISPLAY}"
+			-v "/tmp/.X11-unix:/tmp/.X11-unix:ro"
+		)
+		echo "- Display ${DISPLAY}"
+		if [ -f "${XAUTH}" ]; then
+			EXTRA_ARGS+=(
+				-e "XAUTHORITY=/run/user/$(id -u)/.Xauthority"
+				-v "${XAUTH}:/run/user/$(id -u)/.Xauthority:ro"
+			)
+		fi
+	fi
+
+	if [ -z "$WAYLAND_DISPLAY" ] && [ -z "$DISPLAY" ]; then
+		echo "- Display server not detected. No GUI." >&2
+		return 1
+	fi
 }
 
 setup_graphics() {
@@ -60,6 +76,7 @@ main() {
 		-d
 		--userns=keep-id
 		--name "$BOXNAME"
+		--security-opt label=type:container_runtime_t
 		-v $HOME/.osboxes/work-home:/root:Z
 	)
 
