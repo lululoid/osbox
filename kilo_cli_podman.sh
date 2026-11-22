@@ -9,4 +9,5 @@ podman run -it --rm \
 	-v $LOCAL_PATH:/root/.local/share/kilo:Z \
 	-v $ROOT:/root:Z \
 	-w /workspace \
+	-v $HOME/Projects/distrobox:/workspace/distrobox:Z \
 	kilo-osbox
