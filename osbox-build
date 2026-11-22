@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+import tomlkit
+import argparse
+import subprocess
+
+class Recipe:
+    def __init__(self, config):
+        self.tag = config.get("tag", {})
+        self.image = config.get("image", {})
+        self.ARG = config.get("ARG", {})
+        self.RUN = config.get("RUN", {})
+
+    def to_dict(self):
+        return {
+            "tag": self.tag,
+            "image": self.image,
+            "ARG": self.ARG,
+            "RUN": self.RUN
+        }
+
+def load_config(cfg_path):
+    with open(f"{cfg_path}", "rb") as f:
+        return tomlkit.load(f)
+
+def pkg_install(config):
+    lines = [
+        "COPY scripts/pkg_install /tmp",
+        "RUN chmod +x /tmp/pkg_install",
+        "RUN /tmp/pkg_install "
+    ]
+    packs = config.get("script", {}).get("pkg_install")
+    pkgs = []
+    for pack in packs.keys():
+        lines[2] += " ".join(packs[pack])
+    return lines
+
+def setup_user():
+    return [
+        "COPY scripts/setup_user /tmp",
+        "RUN chmod +x /tmp/setup_user",
+        "RUN /tmp/setup_user",
+        'USER "${USER}"',
+        'WORKDIR "/home/${USER}"'
+    ]
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-f", "--config", help="Path to the TOML config file",
+    )
+    args = parser.parse_args()
+    contfile = []
+
+    if args.config:
+        config = load_config(args.config)
+    else:
+        config = tomlkit.load(open("recipe/ubuntu.toml", "rb"))
+
+    image = config.get("image", {})
+    contfile.append(f"FROM {image}")
+    contarg = config.get("ARG", {})
+
+    for confarg in contarg.items():
+        contfile.append(f"ARG {confarg[0]}={confarg[1]}")
+    contfile += pkg_install(config)
+    contfile += setup_user()
+    contfile += ['CMD ["sleep", "infinity"]']
+    print("\n".join(contfile))
+
+if __name__ == "__main__":
+    main()

@@ -1,8 +1,9 @@
 #!/bin/bash
 
 if [ -n "$USER_UID" ] && [ -n "$USER_GID" ] && [ -n "$USER" ]; then
-	userdel -r ubuntu 2>/dev/null || true &&
-		groupdel ubuntu 2>/dev/null || true &&
+	dft_user=$(whoami)
+	userdel -r $dft_user 2>/dev/null || true &&
+		groupdel $dft_user 2>/dev/null || true &&
 		groupadd -g "${USER_GID}" "${USER}" &&
 		useradd -m -u "${USER_UID}" -g "${USER}" -s /bin/zsh "${USER}" &&
 		echo "${USER}: " | chpasswd &&
