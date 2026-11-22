@@ -1,0 +1,6 @@
+#!/bin/bash
+PKGS=(
+	"github.com/jesseduffield/lazygit@latest"
+)
+
+go install "${PKGS[@]}"

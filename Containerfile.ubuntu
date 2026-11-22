@@ -5,42 +5,14 @@ ARG USER=sonia
 ARG USER_UID=1000
 ARG USER_GID=1000
 
-RUN apt-get update && apt-get install -y \
-  git \
-  curl \
-  wget \
-  x11-apps \
-  mesa-utils \
-  zsh \
-  sudo \
-  pulseaudio \
-  pulseaudio-utils \
-  libpulse0 \
-  libgtk-3-0 libgtk-4-1 gtk2-engines-murrine \
-  xdg-desktop-portal-gtk \
-  adwaita-icon-theme \
-  fonts-dejavu-core \
-  dbus \
-  libcanberra-gtk3-module \
-  at-spi2-core
+COPY scripts/apt_install /tmp
+COPY scripts/go_install /tmp
+COPY scripts/setup_user /tmp
 
-RUN <<EOF
-  apt-get install -y \
-  build-essential \
-  python3 \
-  python3-pip \
-  golang-go
-EOF
-
-RUN go install github.com/jesseduffield/lazygit@latest
-RUN rm -rf /var/lib/apt/lists/*
-
-RUN userdel -r ubuntu 2>/dev/null || true \
-    && groupdel ubuntu 2>/dev/null || true \
-    && groupadd -g "${USER_GID}" "${USER}" \
-    && useradd -m -u "${USER_UID}" -g "${USER}" -s /bin/zsh "${USER}" \
-    && echo "${USER}: " | chpasswd \
-    && echo "${USER} ALL=(ALL) ALL" > /etc/sudoers.d/${USER}
+RUN chmod +x /tmp/apt_install /tmp/go_install /tmp/setup_user
+RUN /tmp/apt_install
+RUN /tmp/go_install
+RUN /tmp/setup_user
 
 USER "${USER}"
 WORKDIR "/home/${USER}"
