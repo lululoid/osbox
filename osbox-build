@@ -4,6 +4,7 @@ from re import sub
 import tomlkit
 import argparse
 import subprocess
+import getpass
 
 DRY_RUN=False
 
@@ -22,6 +23,7 @@ class Recipe:
             "RUN": self.RUN
         }
 
+
 def load_config(cfg_path):
     with open(f"{cfg_path}", "rb") as f:
         return tomlkit.load(f)
@@ -39,7 +41,9 @@ def pkg_install(config):
     return lines
 
 def setup_user():
+    passwd = getpass.getpass("Enter password for user: ")
     return [
+        f"ARG PASSWD={passwd}",
         "COPY scripts/setup_user /tmp",
         "RUN chmod +x /tmp/setup_user",
         "RUN /tmp/setup_user",
