@@ -35,7 +35,7 @@ def pkg_install(config):
     packs = config.get("script", {}).get("pkg_install")
     pkgs = []
     for pack in packs.keys():
-        lines[2] += " ".join(packs[pack])
+        lines[2] += " ".join(packs[pack]) + " "
     return lines
 
 def setup_user():

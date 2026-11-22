@@ -3,7 +3,7 @@ PKGS=()
 basename=${0##*/}
 
 [ -z "$1" ] && echo "  [$basename] no packages to install."
-for pkg in "$2"; do
+for pkg in "$@"; do
 	PKGS+=("$pkg")
 done
 apt-get update && apt-get install -y "${PKGS[@]}"

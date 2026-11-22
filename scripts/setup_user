@@ -1,9 +1,9 @@
 #!/bin/bash
 
 if [ -n "$USER_UID" ] && [ -n "$USER_GID" ] && [ -n "$USER" ]; then
-	dft_user=$(whoami)
-	userdel -r $dft_user 2>/dev/null || true &&
-		groupdel $dft_user 2>/dev/null || true &&
+	defuser=$(getent passwd | awk -F: -v pgid=1000 '$4 == pgid { print $1 }')
+	userdel -r "$defuser" 2>/dev/null || true &&
+		groupdel "$defuser" 2>/dev/null || true &&
 		groupadd -g "${USER_GID}" "${USER}" &&
 		useradd -m -u "${USER_UID}" -g "${USER}" -s /bin/zsh "${USER}" &&
 		echo "${USER}: " | chpasswd &&
