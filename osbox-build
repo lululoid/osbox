@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
+from re import sub
+
 import tomlkit
 import argparse
 import subprocess
+
+DRY_RUN=False
 
 class Recipe:
     def __init__(self, config):
@@ -43,10 +47,21 @@ def setup_user():
         'WORKDIR "/home/${USER}"'
     ]
 
+def write_conf(contfile, path):
+    with open(path, "w") as f:
+        f.write("\n".join(contfile))
+    print(f"- Containerfile written to {path}")
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-f", "--config", help="Path to the TOML config file",
+    )
+    parser.add_argument(
+        "-dr", "--dry-run", action="store_true", help="Dry run mode"
+    )
+    parser.add_argument(
+        "image", help="Image name to build", nargs="*",
     )
     args = parser.parse_args()
     contfile = []
@@ -54,8 +69,19 @@ def main():
     if args.config:
         config = load_config(args.config)
     else:
-        config = tomlkit.load(open("recipe/ubuntu.toml", "rb"))
+        if len(args.image) == 1:
+            # TODO: Implement default barebone Containerfile logic
+            raise SystemExit("default config for image is not implemented yet")
+        elif len(args.image) > 1:
+            raise SystemExit("only one image name or config file is allowed.")
+        else:
+            raise SystemExit("image name or config is required.")
 
+    if args.dry_run:
+        global DRY_RUN
+        DRY_RUN = True
+
+    tag = config.get("tag", {})
     image = config.get("image", {})
     contfile.append(f"FROM {image}")
     contarg = config.get("ARG", {})
@@ -65,7 +91,15 @@ def main():
     contfile += pkg_install(config)
     contfile += setup_user()
     contfile += ['CMD ["sleep", "infinity"]']
-    print("\n".join(contfile))
+
+    if args.dry_run:
+        print("\n".join(contfile))
+    else:
+        contf_path = f"Containerfile.{tag}"
+        write_conf(contfile, contf_path)
+        subprocess.run(
+            ["podman", "build", "-t", tag, "--file", contf_path], check=True
+        )
 
 if __name__ == "__main__":
     main()
