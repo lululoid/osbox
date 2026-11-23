@@ -139,8 +139,11 @@ def main():
         subprocess.run(cmd_enter, check=True)
 
     elif args.command == "stop":
-        cmd_stop = ["podman", "stop", container_name]
-        subprocess.run(cmd_stop, check=True)
+        if container_exists(container_name):
+            cmd_stop = ["podman", "stop", container_name]
+            subprocess.run(cmd_stop, check=True)
+        else:
+            print(f"- Container {container_name} already stopped.")
 
 if __name__ == "__main__":
     main()
