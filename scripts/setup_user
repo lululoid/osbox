@@ -6,7 +6,7 @@ if [ -n "$USER_UID" ] && [ -n "$USER_GID" ] && [ -n "$USER" ]; then
 		groupdel "$defuser" 2>/dev/null || true &&
 		groupadd -g "${USER_GID}" "${USER}" &&
 		useradd -m -u "${USER_UID}" -g "${USER}" -s /bin/zsh "${USER}" &&
-		echo "${USER}: " | chpasswd &&
+		echo "${USER}: ${PASSWD}" | chpasswd &&
 		echo "${USER} ALL=(ALL) ALL" >/etc/sudoers.d/${USER}
 else
 	echo "Error: USER_UID, USER_GID, or USER is not set." >&2
