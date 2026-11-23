@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-from re import sub
-
 import tomlkit
 import argparse
 import subprocess
 import getpass
+import os
+import shutil
 
-DRY_RUN=False
+from re import sub
+from pathlib import Path
+
+DRY_RUN = False
 
 class Recipe:
     def __init__(self, config):
@@ -22,6 +25,20 @@ class Recipe:
             "ARG": self.ARG,
             "RUN": self.RUN
         }
+
+def setup_workdir():
+    user = subprocess.check_output(["whoami"]).decode().strip()
+    home = os.environ.get("home", f"/home/{user}")
+    path = f"{home}/.local/share/osbox"
+    workdir = "/tmp/osbox"
+    Path(f"{workdir}").mkdir(parents=True, exist_ok=True)
+    os.chdir(f"{workdir}")
+    shutil.copytree(
+        f"{path}/scripts", f"{workdir}/scripts", dirs_exist_ok=True
+    )
+    shutil.copytree(
+        f"{path}/recipe", f"{workdir}/recipe", dirs_exist_ok=True
+    )
 
 
 def load_config(cfg_path):
@@ -68,8 +85,8 @@ def main():
         "image", help="Image name to build", nargs="*",
     )
     args = parser.parse_args()
-    contfile = []
 
+    setup_workdir()
     if args.config:
         config = load_config(args.config)
     else:
@@ -85,6 +102,7 @@ def main():
         global DRY_RUN
         DRY_RUN = True
 
+    contfile = []
     tag = config.get("tag", {})
     image = config.get("image", {})
     contfile.append(f"FROM {image}")
