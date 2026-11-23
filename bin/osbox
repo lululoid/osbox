@@ -92,16 +92,19 @@ def sync_theming():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("start")
     parser.add_argument("-e", "--ephemeral", action="store_true", help="Ephemeral mode, automatically remove container on stop.")
-    parser.add_argument("image", help="Image name to start", nargs="*")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    start_parser = subparsers.add_parser("start", help="Start a container")
+    start_parser.add_argument("name", help="Image/container name to start")
+
+    stop_parser = subparsers.add_parser("stop", help="Stop a container")
+    stop_parser.add_argument("name", help="Container name to stop")
+
     args = parser.parse_args()
+    container_name = args.name
 
-    if len(args.image) < 1:
-        raise SystemExit("Image name is not provided.")
-
-    if args.start:
-        container_name = args.image[0]
+    if args.command == "start":
         podargs = [
             "-d",
             "--userns=keep-id",
@@ -123,6 +126,10 @@ def main():
         cmd_enter = ["podman", "exec", "-it", container_name, "/bin/bash"]
         subprocess.run(cmd_run, check=True)
         subprocess.run(cmd_enter, check=True)
+
+    elif args.command == "stop":
+        cmd_stop = ["podman", "stop", container_name]
+        subprocess.run(cmd_stop, check=True)
 
 if __name__ == "__main__":
     main()
