@@ -90,6 +90,12 @@ def sync_theming():
     ]
     return args
 
+def container_exists(name):
+    return subprocess.run(
+        ["podman", "container", "exists", name],
+        capture_output=True, check=False
+    ).returncode == 0
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--ephemeral", action="store_true", help="Ephemeral mode, automatically remove container on stop.")
@@ -124,6 +130,11 @@ def main():
 
         cmd_run = ["podman", "run"] + podargs + [container_name]
         cmd_enter = ["podman", "exec", "-it", container_name, "/bin/bash"]
+        if container_exists(container_name):
+            print(f"- Container {container_name} already exists, entering...")
+            subprocess.run(cmd_enter, check=True)
+            return
+
         subprocess.run(cmd_run, check=True)
         subprocess.run(cmd_enter, check=True)
 
