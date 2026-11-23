@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+import os
+import getpass
+import argparse
+import subprocess
+
+from pathlib import Path
+
+HOME = os.getenv("HOME")
+USER = getpass.getuser()
+
+def setup_display():
+    args = []
+    WAYLAND_DISPLAY = os.environ.get("WAYLAND_DISPLAY")
+    XDG_RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR")
+    DISPLAY = os.environ.get("DISPLAY")
+
+    if not WAYLAND_DISPLAY and not DISPLAY:
+        return args
+
+    if WAYLAND_DISPLAY and XDG_RUNTIME_DIR:
+        is_xdg_soc = Path(str(Path(XDG_RUNTIME_DIR) / WAYLAND_DISPLAY)).is_socket()
+        if WAYLAND_DISPLAY and is_xdg_soc:
+            print("- Using Wayland")
+            args += ["-e", f"WAYLAND_DISPLAY={WAYLAND_DISPLAY}"]
+            args += ["-v", f"{XDG_RUNTIME_DIR}/{WAYLAND_DISPLAY}:/tmp/{WAYLAND_DISPLAY}"]
+
+    if DISPLAY:
+        XAUTH = os.environ.get("XAUTHORITY", f"{HOME}/.Xauthority")
+        args += ["-e", "DISPLAY=${DISPLAY}"]
+        args += ["-v", "/tmp/.X11-unix:/tmp/.X11-unix:ro"]
+        if Path(XAUTH).is_file():
+            args += ["-e", f"XAUTHORITY=/run/user/{USER}/.Xauthority"]
+            args += ["-v", f"{XAUTH}:/run/user/{USER}/.Xauthority:ro"]
+
+    return args
+
+def setup_graphics():
+    return [
+		"--device", "/dev/dri",
+		"--group-add", "video",
+    ]
+
+def setup_audio():
+    args = []
+    uid = os.getuid()
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{uid}")
+    pulse_socket = Path(runtime_dir) / "pulse" / "native"
+    pipewire_socket = Path(runtime_dir) / "pipewire-0"
+
+    if pulse_socket.is_socket():
+        print("- Activating PulseAudio pass-through...")
+        args += ["-v", f"{pulse_socket}:/tmp/pulse-socket:ro"]
+        args += ["-e", "PULSE_SERVER=unix:/tmp/pulse-socket"]
+        return args
+
+    if pipewire_socket.is_socket():
+        print("- Activating PipeWire pass-through...")
+        args += ["-v", f"{pipewire_socket}:/tmp/pipewire-0:ro"]
+        args += ["-e", "PIPEWIRE_SOCKET=unix:/tmp/pipewire-0"]
+        if pulse_socket.is_socket():
+            args += ["-v", f"{pulse_socket}:/tmp/pulse-socket:ro"]
+            args += ["-e", "PULSE_SERVER=unix:/tmp/pulse-socket"]
+        return args
+
+    print(f"- No active audio socket detected at {pulse_socket} or {pipewire_socket}. Audio disabled.")
+    return args
+
+
+def sync_theming():
+    args = []
+    theming_paths = (
+        f"{HOME}/.config/gtk-3.0:/home/{USER}/.config/gtk-3.0:Z,ro",
+        f"{HOME}/.config/gtk-4.0:/home/{USER}/.config/gtk-4.0:Z,ro",
+        f"{HOME}/.themes:/home/sonia/.themes:Z,ro",
+        f"{HOME}/.icons:/home/sonia/.icons:Z,ro",
+        f"{HOME}/.local/share/icons:/home/{USER}/.local/share/icons:Z,ro",
+    )
+
+    for path_spec in theming_paths:
+        host_path = path_spec.split(":", 1)[0]
+        if Path(host_path).exists():
+            args += ["-v", path_spec]
+
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "")
+    args += [
+        "-e", f"DBUS_SESSION_BUS_ADDRESS=unix:path={runtime_dir}/bus",
+        "-v", f"{runtime_dir}/bus:{runtime_dir}/bus",
+        "-e", "GTK_USE_PORTAL=1",
+    ]
+    return args
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("start")
+    parser.add_argument("-e", "--ephemeral", action="store_true", help="Ephemeral mode, automatically remove container on stop.")
+    parser.add_argument("image", help="Image name to start", nargs="*")
+    args = parser.parse_args()
+
+    if len(args.image) < 1:
+        raise SystemExit("Image name is not provided.")
+
+    if args.start:
+        container_name = args.image[0]
+        podargs = [
+            "-d",
+            "--userns=keep-id",
+            "--name", container_name,
+            "--security-opt", "label=type:container_runtime_t",
+            "-v", f"{HOME}/.osboxes/work-home:/home/{USER}:Z",
+        ]
+
+        if args.ephemeral:
+            podargs += ["--rm"]
+            print("- Auto remove container on stop")
+
+        podargs += setup_display()
+        podargs += setup_graphics()
+        podargs += setup_audio()
+        podargs += sync_theming()
+
+        cmd_run = ["podman", "run"] + podargs + [container_name]
+        cmd_enter = ["podman", "exec", "-it", container_name, "/bin/bash"]
+        subprocess.run(cmd_run, check=True)
+        subprocess.run(cmd_enter, check=True)
+
+if __name__ == "__main__":
+    main()

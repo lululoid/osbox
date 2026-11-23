@@ -82,7 +82,7 @@ def main():
         elif len(args.image) > 1:
             raise SystemExit("only one image name or config file is allowed.")
         else:
-            raise SystemExit("image name or config is required.")
+            raise SystemExit("image name or config is not provided.")
 
     recipe = Recipe(config)
     if args.dry_run:
