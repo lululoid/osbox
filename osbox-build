@@ -9,23 +9,6 @@ import shutil
 from re import sub
 from pathlib import Path
 
-DRY_RUN = False
-
-class Recipe:
-    def __init__(self, config):
-        self.tag = config.get("tag", {})
-        self.image = config.get("image", {})
-        self.ARG = config.get("ARG", {})
-        self.RUN = config.get("RUN", {})
-
-    def to_dict(self):
-        return {
-            "tag": self.tag,
-            "image": self.image,
-            "ARG": self.ARG,
-            "RUN": self.RUN
-        }
-
 def setup_workdir():
     user = subprocess.check_output(["whoami"]).decode().strip()
     home = os.environ.get("home", f"/home/{user}")
@@ -39,7 +22,6 @@ def setup_workdir():
     shutil.copytree(
         f"{path}/recipe", f"{workdir}/recipe", dirs_exist_ok=True
     )
-
 
 def load_config(cfg_path):
     with open(f"{cfg_path}", "rb") as f:
@@ -60,7 +42,7 @@ def pkg_install(config):
 def setup_user():
     passwd = getpass.getpass("Enter password for user: ")
     return [
-        f"ARG PASSWD={passwd}",
+        f'ARG PASSWD="{passwd}"',
         "COPY scripts/setup_user /tmp",
         "RUN chmod +x /tmp/setup_user",
         "RUN /tmp/setup_user",
@@ -97,10 +79,6 @@ def main():
             raise SystemExit("only one image name or config file is allowed.")
         else:
             raise SystemExit("image name or config is required.")
-
-    if args.dry_run:
-        global DRY_RUN
-        DRY_RUN = True
 
     contfile = []
     tag = config.get("tag", {})
