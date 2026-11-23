@@ -11,14 +11,15 @@ from pathlib import Path
 
 class Recipe:
     def __init__(self, config):
+        self.config = config
         self.contfile = []
-        self.tag = config.get("tag", {})
-        self.image = config.get("image", {})
+        self.tag = self.config.get("tag", {})
+        self.image = self.config.get("image", {})
         self.contfile.append(f"FROM {self.image}")
-        contarg = config.get("ARG", {})
+        self.contarg = self.config.get("ARG", {})
 
-        for confarg in contarg.items():
-            self.contfile.append(f'ARG {confarg[0]}="{confarg[1]}"')
+        for self.confarg in self.contarg.items():
+            self.contfile.append(f'ARG {self.confarg[0]}="{self.confarg[1]}"')
         self.contfile += self.pkg_install(config)
         self.contfile += self.setup_user()
         self.contfile += ['CMD ["sleep", "infinity"]']
@@ -36,9 +37,12 @@ class Recipe:
         return lines
 
     def setup_user(self):
-        passwd = getpass.getpass("Enter password for user: ")
-        return [
-            f'ARG PASSWD="{passwd}"',
+        user_conf = []
+        passwd = self.contarg.get("PASSWD")
+        if passwd is None:
+            passwd = getpass.getpass("Enter password for user: ")
+            user_conf.append(f'ARG PASSWD="{passwd}"')
+        return user_conf + [
             "COPY scripts/setup_user /tmp",
             "RUN chmod +x /tmp/setup_user",
             "RUN /tmp/setup_user",
