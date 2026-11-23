@@ -5,86 +5,71 @@ import subprocess
 import getpass
 import os
 import shutil
-
-from re import sub
 from pathlib import Path
 
 class Recipe:
     def __init__(self, config):
         self.config = config
-        self.contfile = []
-        self.tag = self.config.get("tag", {})
-        self.image = self.config.get("image", {})
-        self.contfile.append(f"FROM {self.image}")
-        self.contarg = self.config.get("ARG", {})
-
-        for self.confarg in self.contarg.items():
-            self.contfile.append(f'ARG {self.confarg[0]}="{self.confarg[1]}"')
-        self.contfile += self.pkg_install(config)
+        self.tag = config.get("tag", "")
+        self.image = config.get("image", "")
+        self.contfile = [f"FROM {self.image}"]
+        for key, value in config.get("ARG", {}).items():
+            self.contfile.append(f'ARG {key}="{value}"')
+        self.contfile += self.pkg_install()
         self.contfile += self.setup_user()
-        self.contfile += ['CMD ["sleep", "infinity"]']
+        self.contfile.append('CMD ["sleep", "infinity"]')
 
-    def pkg_install(self, config):
+    def pkg_install(self):
+        packs = self.config.get("script", {}).get("pkg_install", {})
+        pkgs = " ".join(pkg for pkgs_list in packs.values() for pkg in pkgs_list)
         lines = [
             "COPY scripts/pkg_install /tmp",
             "RUN chmod +x /tmp/pkg_install",
-            "RUN /tmp/pkg_install "
         ]
-        packs = config.get("script", {}).get("pkg_install")
-        pkgs = []
-        for pack in packs.keys():
-            lines[2] += " ".join(packs[pack]) + " "
+        if pkgs:
+            lines.append(f"RUN /tmp/pkg_install {pkgs}")
         return lines
 
     def setup_user(self):
-        user_conf = []
-        passwd = self.contarg.get("PASSWD")
+        contarg = self.config.get("ARG", {})
+        passwd = contarg.get("PASSWD")
+        lines = []
         if passwd is None:
             passwd = getpass.getpass("Enter password for user: ")
-            user_conf.append(f'ARG PASSWD="{passwd}"')
-        return user_conf + [
+            lines.append(f'ARG PASSWD="{passwd}"')
+        return lines + [
             "COPY scripts/setup_user /tmp",
             "RUN chmod +x /tmp/setup_user",
             "RUN /tmp/setup_user",
             'USER "${USER}"',
-            'WORKDIR "/home/${USER}"'
+            'WORKDIR "/home/${USER}"',
         ]
 
 
+WORKDIR = Path("/tmp/osbox")
+
 def setup_workdir():
-    user = subprocess.check_output(["whoami"]).decode().strip()
-    home = os.environ.get("home", f"/home/{user}")
-    path = f"{home}/.local/share/osbox"
-    workdir = "/tmp/osbox"
-    Path(f"{workdir}").mkdir(parents=True, exist_ok=True)
-    os.chdir(f"{workdir}")
-    shutil.copytree(
-        f"{path}/scripts", f"{workdir}/scripts", dirs_exist_ok=True
-    )
-    shutil.copytree(
-        f"{path}/recipe", f"{workdir}/recipe", dirs_exist_ok=True
-    )
+    user = os.environ.get("USER") or getpass.getuser()
+    home = os.environ.get("HOME", f"/home/{user}")
+    source = Path(home) / ".local/share/osbox"
+    WORKDIR.mkdir(parents=True, exist_ok=True)
+    os.chdir(WORKDIR)
+    for dir in ("scripts", "recipe"):
+        shutil.copytree(source / dir, WORKDIR / dir, dirs_exist_ok=True)
 
 def load_config(cfg_path):
-    with open(f"{cfg_path}", "rb") as f:
+    with open(cfg_path, "rb") as f:
         return tomlkit.load(f)
 
 def write_conf(contfile, path):
-    with open(path, "w") as f:
-        f.write("\n".join(contfile))
+    Path(path).write_text("\n".join(contfile))
     print(f"- Containerfile written to {path}")
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-f", "--config", help="Path to the TOML config file",
-    )
-    parser.add_argument(
-        "-dr", "--dry-run", action="store_true", help="Dry run mode"
-    )
-    parser.add_argument(
-        "image", help="Image name to build", nargs="*",
-    )
+    parser.add_argument("-f", "--config", help="Path to the TOML config file")
+    parser.add_argument("-dr", "--dry-run", action="store_true", help="Dry run mode")
+    parser.add_argument("image", help="Image name to build", nargs="*")
     args = parser.parse_args()
 
     setup_workdir()
