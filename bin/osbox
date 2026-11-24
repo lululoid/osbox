@@ -90,6 +90,12 @@ def setup_themes():
     ]
     return args
 
+def setup_terminal():
+    return [
+        "-e", "TERM",
+        "-e", "COLORTERM",
+    ]
+
 def is_cont_exists(name):
     return subprocess.run(
         ["podman", "container", "exists", name],
@@ -127,6 +133,7 @@ def main():
         podargs += setup_graphics()
         podargs += setup_audio()
         podargs += setup_themes()
+        podargs += setup_terminal()
 
         cmd_run = ["podman", "run"] + podargs + [container_name]
         cmd_enter = ["podman", "exec", "-it", container_name, "/bin/bash"]
