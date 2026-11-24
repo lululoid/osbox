@@ -16,10 +16,12 @@ class Recipe:
         for key, value in config.get("ARG", {}).items():
             self.contfile.append(f'ARG {key}="{value}"')
         self.contfile += self.pkg_install()
+        self.contfile += self.setup_host_spawn()
         self.contfile += self.setup_user()
         self.contfile.append('CMD ["sleep", "infinity"]')
 
     def pkg_install(self):
+        print("- Installing packages")
         packs = self.config.get("script", {}).get("pkg_install", {})
         pkgs = " ".join(pkg for pkgs_list in packs.values() for pkg in pkgs_list)
         lines = [
@@ -31,6 +33,7 @@ class Recipe:
         return lines
 
     def setup_user(self):
+        print("- Setting up user")
         contarg = self.config.get("ARG", {})
         passwd = contarg.get("PASSWD")
         lines = []
@@ -43,6 +46,28 @@ class Recipe:
             "RUN /tmp/setup_user",
             'USER "${USER}"',
             'WORKDIR "/home/${USER}"',
+        ]
+
+    def setup_host_spawn(self):
+        print("- Installing host-spawn")
+        import requests
+        url = "https://api.github.com/repos/1player/host-spawn/releases/latest"
+        r = requests.get(url)
+        r.raise_for_status()
+        host_spawn_v = r.json()["tag_name"]
+        arch = os.uname().machine
+        down_url = f"https://github.com/1player/host-spawn/releases/download/{host_spawn_v}/host-spawn-{arch}"
+        r = requests.get(down_url, stream=True, allow_redirects=True)
+        r.raise_for_status()
+
+        print("- Downloading host-spawn")
+        with open(f"{WORKDIR}/host-spawn", 'wb') as f:
+            for chunk in r.iter_content(8192):
+                f.write(chunk)
+
+        return [
+            "COPY host-spawn /usr/local/bin/host-spawn",
+            "RUN chmod +x /usr/local/bin/host-spawn"
         ]
 
 
