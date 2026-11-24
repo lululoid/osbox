@@ -67,7 +67,7 @@ def setup_audio():
     return args
 
 
-def sync_theming():
+def setup_themes():
     args = []
     theming_paths = (
         f"{HOME}/.config/gtk-3.0:/home/{USER}/.config/gtk-3.0:Z,ro",
@@ -90,7 +90,7 @@ def sync_theming():
     ]
     return args
 
-def container_exists(name):
+def is_cont_exists(name):
     return subprocess.run(
         ["podman", "container", "exists", name],
         capture_output=True, check=False
@@ -126,11 +126,11 @@ def main():
         podargs += setup_display()
         podargs += setup_graphics()
         podargs += setup_audio()
-        podargs += sync_theming()
+        podargs += setup_themes()
 
         cmd_run = ["podman", "run"] + podargs + [container_name]
         cmd_enter = ["podman", "exec", "-it", container_name, "/bin/bash"]
-        if container_exists(container_name):
+        if is_cont_exists(container_name):
             print(f"- Container {container_name} already exists, entering...")
             subprocess.run(cmd_enter, check=True)
             return
@@ -139,7 +139,7 @@ def main():
         subprocess.run(cmd_enter, check=True)
 
     elif args.command == "stop":
-        if container_exists(container_name):
+        if is_cont_exists(container_name):
             cmd_stop = ["podman", "stop", container_name]
             subprocess.run(cmd_stop, check=True)
         else:
