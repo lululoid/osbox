@@ -27,7 +27,7 @@ def setup_display():
 
     if DISPLAY:
         XAUTH = os.environ.get("XAUTHORITY", f"{HOME}/.Xauthority")
-        args += ["-e", "DISPLAY=${DISPLAY}"]
+        args += ["-e", f"DISPLAY={DISPLAY}"]
         args += ["-v", "/tmp/.X11-unix:/tmp/.X11-unix:ro"]
         if Path(XAUTH).is_file():
             args += ["-e", f"XAUTHORITY=/run/user/{USER}/.Xauthority"]
