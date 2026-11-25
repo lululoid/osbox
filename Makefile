@@ -1,8 +1,9 @@
-INSTALL_BIN   := $(HOME)/.local/bin
-INSTALL_SHARE := $(HOME)/.local/share/osbox
-BUILD_DIR     := build
-DIST_DIR      := dist
-PYI           := pyinstaller --onefile --clean
+INSTALL_BIN    := $(HOME)/.local/bin
+INSTALL_SHARE  := $(HOME)/.local/share/osbox
+INSTALL_CONFIG := $(HOME)/.config/osbox
+BUILD_DIR      := build
+DIST_DIR       := dist
+PYI            := pyinstaller --onefile --clean
 
 SCRIPTS := osbox-build osbox
 
@@ -10,13 +11,13 @@ SCRIPTS := osbox-build osbox
 
 all: install
 
-$(INSTALL_BIN) $(INSTALL_SHARE):
+$(INSTALL_BIN) $(INSTALL_SHARE) $(INSTALL_CONFIG):
 	mkdir -p $@
 
-install: $(INSTALL_BIN) $(INSTALL_SHARE) $(addprefix $(DIST_DIR)/,$(SCRIPTS))
+install: $(INSTALL_BIN) $(INSTALL_SHARE) $(INSTALL_CONFIG) $(addprefix $(DIST_DIR)/,$(SCRIPTS))
 	cp $(addprefix $(DIST_DIR)/,$(SCRIPTS)) $(INSTALL_BIN)/
 	cp -rf scripts $(INSTALL_SHARE)/
-	cp -rf recipe  $(INSTALL_SHARE)/
+	cp -rf recipe  $(INSTALL_CONFIG)/
 	chmod +x $(INSTALL_BIN)/osbox $(INSTALL_BIN)/osbox-build
 
 $(DIST_DIR)/%: bin/%
