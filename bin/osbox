@@ -114,6 +114,17 @@ def load_config(cfg_path) -> dict:
     with open(cfg_path, "rb") as f:
         return tomlkit.load(f)
 
+def ask_yn(question, default = False):
+    suffix = " [Y/n]: " if default else " [y/N]: "
+    while True:
+        answer = input(question + suffix).strip().lower()
+        if answer == "":
+            return default
+        if answer in ("y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+
 def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="action", required=True)
@@ -174,9 +185,12 @@ def main():
         subprocess.run(cmd_enter, check=True)
 
     elif args.action == "stop":
-        if is_cont_exists(container_name):
+        stop = ask_yn(f"Stop container '{container_name}'?", False)
+        if is_cont_exists(container_name) and stop:
             cmd_stop = ["podman", "stop", "-t", '0', container_name]
             subprocess.run(cmd_stop, check=True)
+        elif not stop:
+            pass
         else:
             print(f"- Container {container_name} already stopped.")
 
