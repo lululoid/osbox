@@ -98,11 +98,17 @@ def setup_terminal():
         "-e", "COLORTERM",
     ]
 
-def is_cont_exists(name):
+def is_cont_exists(tag):
     return subprocess.run(
-        ["podman", "container", "exists", name],
+        ["podman", "container", "exists", tag],
         capture_output=True, check=False
     ).returncode == 0
+
+def is_cont_alive(tag):
+    return subprocess.run(
+        ["podman", "inspect", "--format", "'{{.State.Running}}'", tag],
+        capture_output=True, check=False, text=True
+    ).stdout.strip("\n'") == "true"
 
 def load_config(cfg_path) -> dict:
     with open(cfg_path, "rb") as f:
@@ -144,8 +150,6 @@ def main():
             else:
                 podargs += [f"{prefix}{key}", str(value)]
 
-        print(podargs)
-
         if args.ephemeral:
             podargs += ["--rm"]
             print("- Auto remove container on stop")
@@ -158,8 +162,11 @@ def main():
 
         cmd_run = ["podman", "run"] + podargs + [container_name]
         cmd_enter = ["podman", "exec", "-it", container_name, "/bin/bash"]
+        cmd_start = ["podman", "start", container_name]
         if is_cont_exists(container_name):
             print(f"- Container {container_name} already exists, entering...")
+            if not is_cont_alive(container_name):
+                subprocess.run(cmd_start, check=True)
             subprocess.run(cmd_enter, check=True)
             return
 
