@@ -7,21 +7,25 @@ PYI            := pyinstaller --onefile --clean
 
 SCRIPTS := osbox-build osbox
 
-.PHONY: all install clean
+.PHONY: all install uninstall clean
 
 all: install
 
 $(INSTALL_BIN) $(INSTALL_SHARE) $(INSTALL_CONFIG):
 	mkdir -p $@
 
-install: $(INSTALL_BIN) $(INSTALL_SHARE) $(INSTALL_CONFIG) $(addprefix $(DIST_DIR)/,$(SCRIPTS))
-	cp $(addprefix $(DIST_DIR)/,$(SCRIPTS)) $(INSTALL_BIN)/
-	cp -rf scripts $(INSTALL_SHARE)/
-	cp -rf recipe  $(INSTALL_CONFIG)/
-	chmod +x $(INSTALL_BIN)/osbox $(INSTALL_BIN)/osbox-build
+install: $(addprefix $(DIST_DIR)/,$(SCRIPTS))
+	install -d $(INSTALL_BIN) $(INSTALL_SHARE) $(INSTALL_CONFIG)
+	install -m 755 $(addprefix $(DIST_DIR)/,$(SCRIPTS)) -t $(INSTALL_BIN)/
+	cp -r scripts $(INSTALL_SHARE)/
+	cp -r recipes  $(INSTALL_CONFIG)/
 
 $(DIST_DIR)/%: bin/%
 	$(PYI) --name $* --distpath $(DIST_DIR) --workpath $(BUILD_DIR) $<
 
 clean:
-	rm -rf $(BUILD_DIR) $(DIST_DIR)   
+	rm -rf $(BUILD_DIR) $(DIST_DIR)
+
+uninstall:
+	rm -f $(addprefix $(INSTALL_BIN)/,$(SCRIPTS))
+	rm -rf $(INSTALL_SHARE)
