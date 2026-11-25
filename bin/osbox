@@ -3,6 +3,7 @@ import os
 import getpass
 import argparse
 import subprocess
+import tomlkit
 
 from pathlib import Path
 
@@ -102,21 +103,28 @@ def is_cont_exists(name):
         capture_output=True, check=False
     ).returncode == 0
 
+def load_config(cfg_path):
+    with open(cfg_path, "rb") as f:
+        return tomlkit.load(f)
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--ephemeral", action="store_true", help="Ephemeral mode, automatically remove container on stop.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="action", required=True)
 
     start_parser = subparsers.add_parser("start", help="Start a container")
-    start_parser.add_argument("name", help="Image/container name to start")
-
     stop_parser = subparsers.add_parser("stop", help="Stop a container")
+
+    start_parser.add_argument("name", help="Image/container name to start")
+    start_parser.add_argument(
+        "-e", "--ephemeral", action="store_true",
+        help="Ephemeral mode, automatically remove container on stop."
+    )
     stop_parser.add_argument("name", help="Container name to stop")
 
     args = parser.parse_args()
     container_name = args.name
 
-    if args.command == "start":
+    if args.action == "start":
         podargs = [
             "-d",
             "--userns=keep-id",
@@ -145,9 +153,9 @@ def main():
         subprocess.run(cmd_run, check=True)
         subprocess.run(cmd_enter, check=True)
 
-    elif args.command == "stop":
+    elif args.action == "stop":
         if is_cont_exists(container_name):
-            cmd_stop = ["podman", "stop", container_name]
+            cmd_stop = ["podman", "stop", "-t", '0', container_name]
             subprocess.run(cmd_stop, check=True)
         else:
             print(f"- Container {container_name} already stopped.")
