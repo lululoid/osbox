@@ -77,10 +77,11 @@ def setup_workdir():
     user = os.environ.get("USER") or getpass.getuser()
     home = os.environ.get("HOME", f"/home/{user}")
     source = Path(home) / ".local/share/osbox"
+    conf_dir = Path(home) / ".config/osbox"
     WORKDIR.mkdir(parents=True, exist_ok=True)
     os.chdir(WORKDIR)
-    for dir in ("scripts", "recipe"):
-        shutil.copytree(source / dir, WORKDIR / dir, dirs_exist_ok=True)
+    shutil.copytree(source / "scripts", WORKDIR / "scripts", dirs_exist_ok=True)
+    shutil.copytree(conf_dir / "recipes", WORKDIR / "recipes", dirs_exist_ok=True)
 
 def load_config(cfg_path):
     with open(cfg_path, "rb") as f:
