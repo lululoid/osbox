@@ -127,30 +127,25 @@ def ask_yn(question, default = False):
 
 def main():
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers(dest="action", required=True)
-
-    start_parser = subparsers.add_parser("start", help="Start a container")
-    stop_parser = subparsers.add_parser("stop", help="Stop a container")
-
-    start_parser.add_argument("name", help="Image/container name to start")
-    start_parser.add_argument(
+    parser.add_argument("action", choices=["start", "stop", "rm"], help="Action to perform")
+    parser.add_argument("tag", help="Container name")
+    parser.add_argument(
         "-e", "--ephemeral", action="store_true",
         help="Ephemeral mode, automatically remove container on stop."
     )
-    stop_parser.add_argument("name", help="Container name to stop")
 
     args = parser.parse_args()
-    container_name = args.name
+    tag = args.tag
 
     if args.action == "start":
         podargs = [
             "-d",
             "--userns=keep-id",
-            "--name", container_name,
+            "--name", tag,
             "--security-opt", "label=type:container_runtime_t",
         ]
 
-        confpath = CONFIG / f"{container_name}.toml"
+        confpath = CONFIG / f"{tag}.toml"
         config = load_config(confpath)
         conf_podargs: dict = config.get("podman_args", [])
         for key, value in conf_podargs.items():
@@ -171,12 +166,12 @@ def main():
         podargs += setup_themes()
         podargs += setup_terminal()
 
-        cmd_run = ["podman", "run"] + podargs + [container_name]
-        cmd_enter = ["podman", "exec", "-it", container_name, "/bin/bash"]
-        cmd_start = ["podman", "start", container_name]
-        if is_cont_exists(container_name):
-            print(f"- Container {container_name} already exists, entering...")
-            if not is_cont_alive(container_name):
+        cmd_run = ["podman", "run"] + podargs + [tag]
+        cmd_enter = ["podman", "exec", "-it", tag, "/bin/bash"]
+        cmd_start = ["podman", "start", tag]
+        if is_cont_exists(tag):
+            print(f"- Container {tag} already exists, entering...")
+            if not is_cont_alive(tag):
                 subprocess.run(cmd_start, check=True)
             subprocess.run(cmd_enter, check=True)
             return
@@ -185,14 +180,24 @@ def main():
         subprocess.run(cmd_enter, check=True)
 
     elif args.action == "stop":
-        stop = ask_yn(f"Stop container '{container_name}'?", False)
-        if is_cont_exists(container_name) and stop:
-            cmd_stop = ["podman", "stop", "-t", '0', container_name]
+        stop = ask_yn(f"Stop container '{tag}'?", False)
+        if is_cont_exists(tag) and stop:
+            cmd_stop = ["podman", "stop", "-t", '0', tag]
             subprocess.run(cmd_stop, check=True)
         elif not stop:
             pass
         else:
-            print(f"- Container {container_name} already stopped.")
+            print(f"- Container {tag} already stopped.")
+
+    elif args.action == "rm":
+        rm = ask_yn(f"Remove container '{tag}'?", False)
+        if is_cont_exists(tag) and rm:
+            cmd_rm = ["podman", "rm", "-f", tag]
+            subprocess.run(cmd_rm, check=True)
+        elif not rm:
+            pass
+        else:
+            print(f"- Container {tag} does not exist.")
 
 if __name__ == "__main__":
     main()
