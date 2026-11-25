@@ -7,8 +7,9 @@ import tomlkit
 
 from pathlib import Path
 
-HOME = os.getenv("HOME")
-USER = getpass.getuser()
+USER = os.environ.get("USER") or getpass.getuser()
+HOME = os.environ.get("HOME", f"/HOME/{USER}")
+CONFIG = Path(HOME) / ".config/osbox"
 
 def setup_display():
     args = []
@@ -103,7 +104,7 @@ def is_cont_exists(name):
         capture_output=True, check=False
     ).returncode == 0
 
-def load_config(cfg_path):
+def load_config(cfg_path) -> dict:
     with open(cfg_path, "rb") as f:
         return tomlkit.load(f)
 
@@ -130,8 +131,20 @@ def main():
             "--userns=keep-id",
             "--name", container_name,
             "--security-opt", "label=type:container_runtime_t",
-            "-v", f"{HOME}/.osboxes/work-home:/home/{USER}:Z",
         ]
+
+        confpath = CONFIG / f"{container_name}.toml"
+        config = load_config(confpath)
+        conf_podargs: dict = config.get("podman_args", [])
+        for key, value in conf_podargs.items():
+            prefix = "--" if len(key) > 1 else "-"
+            if isinstance(value, list):
+                for v in value:
+                    podargs += [f"{prefix}{key}", str(v)]
+            else:
+                podargs += [f"{prefix}{key}", str(value)]
+
+        print(podargs)
 
         if args.ephemeral:
             podargs += ["--rm"]

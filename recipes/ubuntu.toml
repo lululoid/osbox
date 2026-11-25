@@ -36,4 +36,4 @@ pkgs = [
 # cmd = ["go install github.com/jesseduffield/lazygit@latest"]
 
 [podman_args]
-volume = ["$HOME/.osboxes/work-home:/home/$USER:Z"]
+volume = ["/home/sonia/.osboxes/work-home:/home/sonia:Z"]
