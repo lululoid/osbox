@@ -7,6 +7,13 @@ import os
 import shutil
 from pathlib import Path
 
+USER = os.environ.get("USER") or getpass.getuser()
+HOME = os.environ.get("HOME", f"/HOME/{USER}")
+LOCAL = Path(HOME) / ".local/share/osbox"
+WORKDIR = Path("/tmp/osbox")
+CONFIG = Path(HOME) / ".config/osbox"
+DRY_RUN = False
+
 class Recipe:
     def __init__(self, config):
         self.config = config
@@ -50,20 +57,21 @@ class Recipe:
 
     def setup_host_spawn(self):
         print("- Installing host-spawn")
-        import requests
-        url = "https://api.github.com/repos/1player/host-spawn/releases/latest"
-        r = requests.get(url)
-        r.raise_for_status()
-        host_spawn_v = r.json()["tag_name"]
-        arch = os.uname().machine
-        down_url = f"https://github.com/1player/host-spawn/releases/download/{host_spawn_v}/host-spawn-{arch}"
-        r = requests.get(down_url, stream=True, allow_redirects=True)
-        r.raise_for_status()
+        if not DRY_RUN:
+            import requests
+            url = "https://api.github.com/repos/1player/host-spawn/releases/latest"
+            r = requests.get(url)
+            r.raise_for_status()
+            host_spawn_v = r.json()["tag_name"]
+            arch = os.uname().machine
+            down_url = f"https://github.com/1player/host-spawn/releases/download/{host_spawn_v}/host-spawn-{arch}"
+            r = requests.get(down_url, stream=True, allow_redirects=True)
+            r.raise_for_status()
 
-        print("- Downloading host-spawn")
-        with open(f"{WORKDIR}/host-spawn", 'wb') as f:
-            for chunk in r.iter_content(8192):
-                f.write(chunk)
+            print("- Downloading host-spawn")
+            with open(f"{WORKDIR}/host-spawn", 'wb') as f:
+                for chunk in r.iter_content(8192):
+                    f.write(chunk)
 
         return [
             "COPY host-spawn /usr/local/bin/host-spawn",
@@ -71,17 +79,11 @@ class Recipe:
         ]
 
 
-WORKDIR = Path("/tmp/osbox")
-
 def setup_workdir():
-    user = os.environ.get("USER") or getpass.getuser()
-    home = os.environ.get("HOME", f"/home/{user}")
-    source = Path(home) / ".local/share/osbox"
-    conf_dir = Path(home) / ".config/osbox"
     WORKDIR.mkdir(parents=True, exist_ok=True)
     os.chdir(WORKDIR)
-    shutil.copytree(source / "scripts", WORKDIR / "scripts", dirs_exist_ok=True)
-    shutil.copytree(conf_dir / "recipes", WORKDIR / "recipes", dirs_exist_ok=True)
+    shutil.copytree(LOCAL / "scripts", WORKDIR / "scripts", dirs_exist_ok=True)
+    shutil.copytree(CONFIG / "recipes", WORKDIR / "recipes", dirs_exist_ok=True)
 
 def load_config(cfg_path):
     with open(cfg_path, "rb") as f:
@@ -98,9 +100,17 @@ def main():
     parser.add_argument("image", help="Image name to build", nargs="*")
     args = parser.parse_args()
 
+    if args.dry_run:
+        global DRY_RUN
+        DRY_RUN = True
+
     setup_workdir()
     if args.config:
         config = load_config(args.config)
+        recipe = Recipe(config)
+
+        if not DRY_RUN:
+            shutil.copy(args.config, CONFIG / f"{recipe.tag}.toml")
     else:
         if len(args.image) == 1:
             # TODO: Implement default barebone Containerfile logic
@@ -110,8 +120,7 @@ def main():
         else:
             raise SystemExit("image name or config is not provided.")
 
-    recipe = Recipe(config)
-    if args.dry_run:
+    if DRY_RUN:
         print("\n".join(recipe.contfile))
     else:
         contf_path = f"Containerfile.{recipe.tag}"
