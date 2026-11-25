@@ -5,6 +5,8 @@ image = "ubuntu:latest"
 USER = "sonia"
 USER_UID = 1000
 USER_GID = 1000
+DEBIAN_FRONTEND = "noninteractive"
+PASSWD = " "
 
 [script.pkg_install]
 pkgs = [
@@ -28,10 +30,10 @@ pkgs = [
   "libcanberra-gtk3-module",
   "at-spi2-core",
 ]
-dev_pkgs = ["build-essential", "python3", "python3-pip", "golang-go"]
+# dev_pkgs = ["build-essential", "python3", "python3-pip", "golang-go"]
 
-[RUN]
-cmd = ["go install github.com/jesseduffield/lazygit@latest"]
+# [RUN]
+# cmd = ["go install github.com/jesseduffield/lazygit@latest"]
 
 [podman_args]
-v = ["/tmp/data:/data:ro", "/tmp/config:~/.config:ro"]
+volume = ["$HOME/.osboxes/work-home:/home/$USER:Z"]

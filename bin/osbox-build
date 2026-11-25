@@ -18,18 +18,18 @@ class Recipe:
         self.contfile += self.pkg_install()
         self.contfile += self.setup_host_spawn()
         self.contfile += self.setup_user()
-        self.contfile.append('CMD ["sleep", "infinity"]')
+        self.contfile += ['CMD ["sleep", "infinity"]']
 
     def pkg_install(self):
         print("- Installing packages")
         packs = self.config.get("script", {}).get("pkg_install", {})
         pkgs = " ".join(pkg for pkgs_list in packs.values() for pkg in pkgs_list)
         lines = [
-            "COPY scripts/pkg_install /tmp",
-            "RUN chmod +x /tmp/pkg_install",
+            "COPY scripts/pkg-install /tmp",
+            "RUN chmod +x /tmp/pkg-install",
         ]
         if pkgs:
-            lines.append(f"RUN /tmp/pkg_install {pkgs}")
+            lines.append(f"RUN /tmp/pkg-install {pkgs}")
         return lines
 
     def setup_user(self):
@@ -41,9 +41,9 @@ class Recipe:
             passwd = getpass.getpass("Enter password for user: ")
             lines.append(f'ARG PASSWD="{passwd}"')
         return lines + [
-            "COPY scripts/setup_user /tmp",
-            "RUN chmod +x /tmp/setup_user",
-            "RUN /tmp/setup_user",
+            "COPY scripts/setup-user /tmp",
+            "RUN chmod +x /tmp/setup-user",
+            "RUN /tmp/setup-user",
             'USER "${USER}"',
             'WORKDIR "/home/${USER}"',
         ]
