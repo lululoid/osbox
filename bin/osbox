@@ -129,7 +129,7 @@ def ask_yn(question, default = False):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["start", "stop", "rm"], help="Action to perform")
+    parser.add_argument("action", choices=["enter", "stop", "rm"], help="Action to perform")
     parser.add_argument("tag", help="Container name")
     parser.add_argument(
         "-e", "--ephemeral", action="store_true",
@@ -139,7 +139,7 @@ def main():
     args, podman_args = parser.parse_known_args()
     tag = args.tag
 
-    if args.action == "start":
+    if args.action == "enter":
         podargs = [
             "-d",
             "--userns=keep-id",
