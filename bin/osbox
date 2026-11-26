@@ -183,22 +183,20 @@ def main():
         subprocess.run(cmd_enter, check=True)
 
     elif args.action == "stop":
-        stop = ask_yn(f"Stop container '{tag}'?", False)
-        if is_cont_exists(tag) and stop:
-            cmd_stop = ["podman", "stop", "-t", '0', tag]
-            subprocess.run(cmd_stop, check=True)
-        elif not stop:
-            pass
+        if is_cont_exists(tag):
+            stop = ask_yn(f"Stop container '{tag}'?", False)
+            if stop:
+                cmd_stop = ["podman", "stop", "-t", '0', tag]
+                subprocess.run(cmd_stop, check=True)
         else:
             print(f"- Container {tag} already stopped.")
 
     elif args.action == "rm":
-        rm = ask_yn(f"Remove container '{tag}'?", False)
-        if is_cont_exists(tag) and rm:
-            cmd_rm = ["podman", "rm", "-f", tag]
-            subprocess.run(cmd_rm, check=True)
-        elif not rm:
-            pass
+        if is_cont_exists(tag):
+            rm = ask_yn(f"Remove container '{tag}'?", False)
+            if rm:
+                cmd_rm = ["podman", "rm", "-f", tag]
+                subprocess.run(cmd_rm, check=True)
         else:
             print(f"- Container {tag} does not exist.")
 
