@@ -81,7 +81,6 @@ class Recipe:
 
 def setup_workdir():
     WORKDIR.mkdir(parents=True, exist_ok=True)
-    os.chdir(WORKDIR)
     shutil.copytree(LOCAL / "scripts", WORKDIR / "scripts", dirs_exist_ok=True)
     shutil.copytree(CONFIG / "recipes", WORKDIR / "recipes", dirs_exist_ok=True)
 
@@ -123,10 +122,11 @@ def main():
     if DRY_RUN:
         print("\n".join(recipe.contfile))
     else:
-        contf_path = f"Containerfile.{recipe.tag}"
-        write_conf(recipe.contfile, contf_path)
+        os.chdir(WORKDIR)
+        contfile = f"Containerfile.{recipe.tag}"
+        write_conf(recipe.contfile, contfile)
         subprocess.run(
-            ["podman", "build", "-t", recipe.tag, "--file", contf_path], check=True
+            ["podman", "build", "-t", recipe.tag, "--file", contfile], check=True
         )
 
 if __name__ == "__main__":
