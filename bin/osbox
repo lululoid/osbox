@@ -134,7 +134,7 @@ def main():
         help="Ephemeral mode, automatically remove container on stop."
     )
 
-    args = parser.parse_args()
+    args, podman_args = parser.parse_known_args()
     tag = args.tag
 
     if args.action == "start":
@@ -165,6 +165,7 @@ def main():
         podargs += setup_audio()
         podargs += setup_themes()
         podargs += setup_terminal()
+        podargs += podman_args
 
         cmd_run = ["podman", "run"] + podargs + [tag]
         cmd_enter = ["podman", "exec", "-it", tag, "/bin/bash"]
