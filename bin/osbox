@@ -172,6 +172,8 @@ def main():
         cmd_start = ["podman", "start", tag]
         if is_cont_exists(tag):
             print(f"- Container {tag} already exists, entering...")
+            if len(podman_args) > 0:
+                print("- Warning: Extra podman arguments are ignored when starting an existing container, stop container first to apply.")
             if not is_cont_alive(tag):
                 subprocess.run(cmd_start, check=True)
             subprocess.run(cmd_enter, check=True)
