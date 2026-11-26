@@ -2,6 +2,7 @@
 import os
 import getpass
 import argparse
+import shutil
 import subprocess
 import tomlkit
 
@@ -10,6 +11,7 @@ from pathlib import Path
 USER = os.environ.get("USER") or getpass.getuser()
 HOME = os.environ.get("HOME", f"/HOME/{USER}")
 CONFIG = Path(HOME) / ".config/osbox"
+HOME_CONT = Path(f"{HOME}/.osboxes")
 
 def setup_display():
     args = []
@@ -167,6 +169,13 @@ def main():
         podargs += setup_terminal()
         podargs += podman_args
 
+        cont_home =  config.get("home")
+        if cont_home and not is_cont_alive(tag):
+            home_path = Path(HOME_CONT / tag)
+            home_path.mkdir(parents=True, exist_ok=True)
+            podargs += ["-v", f"{home_path}:/home/{USER}:Z"]
+            print(f"- Mounting {home_path} as /home/{USER}")
+
         cmd_run = ["podman", "run"] + podargs + [tag]
         cmd_enter = ["podman", "exec", "-it", tag, "/bin/bash"]
         cmd_start = ["podman", "start", tag]
@@ -188,8 +197,10 @@ def main():
             if stop:
                 cmd_stop = ["podman", "stop", "-t", '0', tag]
                 subprocess.run(cmd_stop, check=True)
-        else:
+        elif not is_cont_alive(tag) and is_cont_exists(tag):
             print(f"- Container {tag} already stopped.")
+        else:
+            print(f"- Container {tag} does not exist.")
 
     elif args.action == "rm":
         if is_cont_exists(tag):
