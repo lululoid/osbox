@@ -50,6 +50,10 @@ class PodmanBridge:
         args = ["podman", "rm"] + list(extra_args) + [self.tag]
         subprocess.run(args, check=True)
 
+    def exec(self, *commands, extra_args=[]):
+        args = ["podman", "exec"] + extra_args + [self.tag] + list(commands)
+        subprocess.run(args, check=True)
+
 def setup_display():
     args = []
     WAYLAND_DISPLAY = os.environ.get("WAYLAND_DISPLAY")
@@ -181,9 +185,9 @@ def main():
         podman.run_default()
         confpath = CONFIG / f"{tag}.toml"
         config = load_config(confpath)
-        conf_podargs: dict = config.get("podman_args", [])
+        conf_podargs = config.get("podman_args", [])
         for key, value in conf_podargs.items():
-            prefix = "--" if len(key) > 1 else "-"
+            prefix = "--" if len(key) > 2 else "-"
             if isinstance(value, list):
                 for v in value:
                     podman.add_args(f"{prefix}{key}", str(v))
@@ -201,10 +205,28 @@ def main():
         podman.add_args(*setup_terminal())
         podman.add_args(*podman_args)
 
+        # TODO: default home to .osboxes if config does not provide
+        # support custom path as well
         cont_home =  config.get("home")
         if cont_home and not is_cont_alive(tag):
             home_path = Path(HOME_CONT / tag)
-            home_path.mkdir(parents=True, exist_ok=True)
+            cont_local = Path(home_path / ".local/share/osboxes")
+            home_init = Path(cont_local / ".home_init")
+            cont_local.mkdir(parents=True, exist_ok=True)
+
+            # sync container home to host home on first run
+            if not home_init.is_file():
+                print("- First time initializing home directory for {tag}. Setting up...")
+                podman.add_args("-v", f"{home_path}:/run/host:Z")
+                podman.run()
+                podman.start()
+                podman.exec(
+                    "cp", "-rf", f"/home/{USER}/.", "/run/host/",
+                    extra_args=["-u", "root"]
+                )
+                home_init.touch()
+                podman.stop("-t", "0")
+                del podman.run_args[-2:]
             podman.add_args("-v", f"{home_path}:/home/{USER}:Z")
             print(f"- Mounting {home_path} as /home/{USER}")
 
