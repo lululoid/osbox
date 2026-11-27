@@ -4,6 +4,7 @@ import getpass
 import argparse
 import shutil
 import subprocess
+from typing import Self
 import tomlkit
 
 from pathlib import Path
@@ -12,6 +13,42 @@ USER = os.environ.get("USER") or getpass.getuser()
 HOME = os.environ.get("HOME", f"/HOME/{USER}")
 CONFIG = Path(HOME) / ".config/osbox"
 HOME_CONT = Path(f"{HOME}/.osboxes")
+
+class PodmanBridge:
+    def __init__(self, tag):
+        self.tag = tag
+        self.run_args = []
+
+    def run_default(self):
+        self.run_args += [
+            "-d",
+            "--userns=keep-id",
+            "--name", self.tag,
+            "--security-opt", "label=type:container_runtime_t",
+        ]
+
+    def add_args(self, *args):
+        self.run_args += list(args)
+
+    def run(self, *extra_args):
+        args = ["podman", "run"] + self.run_args + list(extra_args) + [self.tag]
+        subprocess.run(args, check=True)
+
+    def start(self, *extra_args):
+        args = ["podman", "start"] + list(extra_args) + [self.tag]
+        subprocess.run(args, check=True)
+
+    def enter(self, shell="/bin/bash", extra_args=[]):
+        args = ["podman", "exec", "-it"] + extra_args + [self.tag, shell]
+        subprocess.run(args, check=True)
+
+    def stop(self, *extra_args):
+        args = ["podman", "stop"] + list(extra_args) + [self.tag]
+        subprocess.run(args, check=True)
+
+    def rm(self, *extra_args):
+        args = ["podman", "rm"] + list(extra_args) + [self.tag]
+        subprocess.run(args, check=True)
 
 def setup_display():
     args = []
@@ -138,15 +175,10 @@ def main():
 
     args, podman_args = parser.parse_known_args()
     tag = args.tag
+    podman = PodmanBridge(tag)
 
     if args.action == "enter":
-        podargs = [
-            "-d",
-            "--userns=keep-id",
-            "--name", tag,
-            "--security-opt", "label=type:container_runtime_t",
-        ]
-
+        podman.run_default()
         confpath = CONFIG / f"{tag}.toml"
         config = load_config(confpath)
         conf_podargs: dict = config.get("podman_args", [])
@@ -154,49 +186,45 @@ def main():
             prefix = "--" if len(key) > 1 else "-"
             if isinstance(value, list):
                 for v in value:
-                    podargs += [f"{prefix}{key}", str(v)]
+                    podman.add_args(f"{prefix}{key}", str(v))
             else:
-                podargs += [f"{prefix}{key}", str(value)]
+                podman.add_args(f"{prefix}{key}", str(value))
 
         if args.ephemeral:
-            podargs += ["--rm"]
+            podman.add_args("--rm")
             print("- Auto remove container on stop")
 
-        podargs += setup_display()
-        podargs += setup_graphics()
-        podargs += setup_audio()
-        podargs += setup_themes()
-        podargs += setup_terminal()
-        podargs += podman_args
+        podman.add_args(*setup_display())
+        podman.add_args(*setup_graphics())
+        podman.add_args(*setup_audio())
+        podman.add_args(*setup_themes())
+        podman.add_args(*setup_terminal())
+        podman.add_args(*podman_args)
 
         cont_home =  config.get("home")
         if cont_home and not is_cont_alive(tag):
             home_path = Path(HOME_CONT / tag)
             home_path.mkdir(parents=True, exist_ok=True)
-            podargs += ["-v", f"{home_path}:/home/{USER}:Z"]
+            podman.add_args("-v", f"{home_path}:/home/{USER}:Z")
             print(f"- Mounting {home_path} as /home/{USER}")
 
-        cmd_run = ["podman", "run"] + podargs + [tag]
-        cmd_enter = ["podman", "exec", "-it", tag, "/bin/bash"]
-        cmd_start = ["podman", "start", tag]
         if is_cont_exists(tag):
             print(f"- Container {tag} already exists, entering...")
             if len(podman_args) > 0:
                 print("- Warning: Extra podman arguments are ignored when starting an existing container, stop container first to apply.")
             if not is_cont_alive(tag):
-                subprocess.run(cmd_start, check=True)
-            subprocess.run(cmd_enter, check=True)
+                podman.start()
+            podman.enter()
             return
 
-        subprocess.run(cmd_run, check=True)
-        subprocess.run(cmd_enter, check=True)
+        podman.run()
+        podman.enter()
 
     elif args.action == "stop":
         if is_cont_exists(tag):
             stop = ask_yn(f"Stop container '{tag}'?", False)
             if stop:
-                cmd_stop = ["podman", "stop", "-t", '0', tag]
-                subprocess.run(cmd_stop, check=True)
+                podman.stop("-t", "0")
         elif not is_cont_alive(tag) and is_cont_exists(tag):
             print(f"- Container {tag} already stopped.")
         else:
@@ -206,8 +234,7 @@ def main():
         if is_cont_exists(tag):
             rm = ask_yn(f"Remove container '{tag}'?", False)
             if rm:
-                cmd_rm = ["podman", "rm", "-f", tag]
-                subprocess.run(cmd_rm, check=True)
+                podman.rm("-f")
         else:
             print(f"- Container {tag} does not exist.")
 
