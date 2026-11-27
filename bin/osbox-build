@@ -90,6 +90,7 @@ def load_config(cfg_path):
 
 def write_conf(contfile, path):
     Path(path).write_text("\n".join(contfile))
+    Path(path).chmod(0o600) # config can contain password for the container
     print(f"- Containerfile written to {path}")
 
 def main():
